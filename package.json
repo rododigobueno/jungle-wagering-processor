@@ -20,7 +20,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:integration": "vitest run --config ./vitest.config.integration.ts",
-    "test:e2e": "bun run build && vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "bun run build && vitest run --config ./vitest.config.e2e.ts",
+    "sqs:provision": "bun run scripts/provision-local-sqs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1145.0",
