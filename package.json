@@ -14,13 +14,14 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "oxlint --type-aware src/ test/",
+    "lint": "oxlint --type-aware src/ test/ scripts/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:integration": "vitest run --config ./vitest.config.integration.ts",
     "test:e2e": "bun run build && vitest run --config ./vitest.config.e2e.ts",
+    "test:distributed": "bun run build && bun run scripts/distributed-concurrency-check.ts",
     "sqs:provision": "bun run scripts/provision-local-sqs.ts"
   },
   "dependencies": {
