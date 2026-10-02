@@ -20,7 +20,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:integration": "vitest run --config ./vitest.config.integration.ts",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "bun run build && vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
     "@mikro-orm/core": "^7.2.3",
