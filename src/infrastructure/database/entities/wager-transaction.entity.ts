@@ -84,6 +84,22 @@ export class WagerTransactionEntity {
     length: 3,
   })
   currency!: string;
+    @Property({
+    type: DecimalType,
+    precision: 18,
+    scale: 2,
+    fieldName: 'result_balance_amount',
+    nullable: true,
+  })
+  resultBalanceAmount?: string;
+
+  @Property({
+    type: 'string',
+    length: 3,
+    fieldName: 'result_balance_currency',
+    nullable: true,
+  })
+  resultBalanceCurrency?: string;
 
   @Property({
     type: 'string',
