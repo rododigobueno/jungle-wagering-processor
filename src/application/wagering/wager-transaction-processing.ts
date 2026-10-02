@@ -17,6 +17,7 @@ import { WalletEntity } from '../../infrastructure/database/entities/wallet.enti
 import { WagerTransactionEntity } from '../../infrastructure/database/entities/wager-transaction.entity.js';
 import { WalletLedgerEntryEntity } from '../../infrastructure/database/entities/wallet-ledger-entry.entity.js';
 import { OutboxMessageEntity } from '../../infrastructure/database/entities/outbox-message.entity.js';
+import { applyWagerReversal } from './wager-reversal-processing.js';
 
 export interface ProcessWagerTransactionInput {
   idempotencyKey: string;
@@ -164,13 +165,20 @@ export async function processWagerTransactionInTransaction(
     ledgerDirection = LedgerDirection.Credit;
   } else if (input.kind === WagerTransactionKind.Loss) {
     // LOSS é auditável, mas não movimenta saldo.
-  } else {
-    throw new Error(
-      `${input.kind} is not implemented in this processing stage`,
-    );
+  } else if (
+    input.kind === WagerTransactionKind.Refund ||
+    input.kind === WagerTransactionKind.Rollback
+  ) {
+    ledgerDirection = await applyWagerReversal({
+      tx,
+      transaction,
+      wallet,
+      money,
+      now,
+    });
   }
 
-  if (!transaction.isTerminal()) {
+  if (transaction.status === WagerTransactionStatus.Pending) {
     transaction.markProcessed(undefined, now);
   }
 
@@ -251,7 +259,9 @@ export async function processWagerTransactionInTransaction(
   const eventType =
     transaction.status === WagerTransactionStatus.Rejected
       ? 'WagerTransactionRejected'
-      : 'WagerTransactionProcessed';
+      : transaction.status === WagerTransactionStatus.PendingReference
+        ? 'WagerTransactionPendingReference'
+        : 'WagerTransactionProcessed';
 
   const transactionEvent = tx.create(OutboxMessageEntity, {
     id: randomUUID(),

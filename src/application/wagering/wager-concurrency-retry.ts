@@ -9,6 +9,7 @@ const MAX_CONCURRENCY_RETRIES = 5;
 const RETRYABLE_TRANSACTION_UNIQUE_CONSTRAINTS = new Set([
   'wager_transaction_idempotency_key_unique',
   'wager_transaction_provider_external_unique',
+  'wager_transaction_processed_reversal_unique',
 ]);
 
 export interface WagerConcurrencyRetryOptions {

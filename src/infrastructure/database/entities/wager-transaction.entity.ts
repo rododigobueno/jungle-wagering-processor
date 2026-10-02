@@ -16,6 +16,12 @@ import {
   name: 'wager_transaction_provider_external_unique',
   properties: ['providerId', 'externalTransactionId'],
 })
+@Unique({
+  name: 'wager_transaction_processed_reversal_unique',
+  properties: ['referenceTransactionId', 'kind'],
+  where:
+    "reference_transaction_id is not null and status = 'PROCESSED' and kind in ('REFUND', 'ROLLBACK')",
+})
 @Check({
   name: 'wager_transaction_amount_non_negative',
   expression: 'amount >= 0',
@@ -84,7 +90,7 @@ export class WagerTransactionEntity {
     length: 3,
   })
   currency!: string;
-    @Property({
+  @Property({
     type: DecimalType,
     precision: 18,
     scale: 2,
