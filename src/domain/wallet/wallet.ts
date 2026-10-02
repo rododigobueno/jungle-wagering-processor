@@ -26,8 +26,8 @@ export class Wallet {
     playerId: string;
     initialBalance: Money;
   }): Wallet {
-    if (!props.initialBalance.isPositive()) {
-      throw new Error('Initial balance must be positive');
+         if (props.initialBalance.isNegative()) {
+      throw new Error('Initial balance cannot be negative');
     }
 
     const now = new Date();
