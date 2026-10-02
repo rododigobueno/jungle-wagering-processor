@@ -308,6 +308,8 @@ Ao final, as instâncias são encerradas e o banco temporário é removido.
 
 ## Decisões arquiteturais principais
 
+Detalhes e trade-offs estão documentados em [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 - **PostgreSQL como fonte de verdade:** a correção entre múltiplas instâncias não depende de memória local.
 - **`decimal.js` para dinheiro:** valores monetários entram e saem como strings decimais e não são calculados com `float`.
 - **Optimistic locking na wallet:** conflitos de saldo são detectados pela versão da linha e refeitos com estado atualizado.
