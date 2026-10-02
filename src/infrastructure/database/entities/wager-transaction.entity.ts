@@ -2,6 +2,7 @@ import { DecimalType } from '@mikro-orm/core';
 import {
   Check,
   Entity,
+  Index,
   PrimaryKey,
   Property,
   Unique,
@@ -21,6 +22,11 @@ import {
   properties: ['referenceTransactionId', 'kind'],
   where:
     "reference_transaction_id is not null and status = 'PROCESSED' and kind in ('REFUND', 'ROLLBACK')",
+})
+@Index({
+  name: 'wager_transaction_pending_reference_due_idx',
+  properties: ['referenceNextAttemptAt', 'createdAt'],
+  where: "status = 'PENDING_REFERENCE'",
 })
 @Check({
   name: 'wager_transaction_amount_non_negative',
@@ -120,6 +126,20 @@ export class WagerTransactionEntity {
     nullable: true,
   })
   referenceTransactionId?: string;
+
+  @Property({
+    type: 'integer',
+    fieldName: 'reference_retry_attempts',
+    default: 0,
+  })
+  referenceRetryAttempts = 0;
+
+  @Property({
+    type: 'datetime',
+    fieldName: 'reference_next_attempt_at',
+    nullable: true,
+  })
+  referenceNextAttemptAt?: Date | null;
 
   @Property({ type: 'string' })
   status!: string;

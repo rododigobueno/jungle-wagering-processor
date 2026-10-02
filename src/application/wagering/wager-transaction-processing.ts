@@ -18,6 +18,7 @@ import { WagerTransactionEntity } from '../../infrastructure/database/entities/w
 import { WalletLedgerEntryEntity } from '../../infrastructure/database/entities/wallet-ledger-entry.entity.js';
 import { OutboxMessageEntity } from '../../infrastructure/database/entities/outbox-message.entity.js';
 import { applyWagerReversal } from './wager-reversal-processing.js';
+import { getNextReferenceAttemptAt } from './pending-reference-policy.js';
 
 export interface ProcessWagerTransactionInput {
   idempotencyKey: string;
@@ -248,6 +249,11 @@ export async function processWagerTransactionInTransaction(
     currency: transaction.money.currency,
     referenceExternalTransactionId: transaction.referenceExternalTransactionId,
     referenceTransactionId: transaction.referenceTransactionId,
+    referenceRetryAttempts: 0,
+    referenceNextAttemptAt:
+      transaction.status === WagerTransactionStatus.PendingReference
+        ? getNextReferenceAttemptAt(now, 0)
+        : undefined,
     status: transaction.status,
     failureCode: transaction.failureCode,
     createdAt: transaction.createdAt,

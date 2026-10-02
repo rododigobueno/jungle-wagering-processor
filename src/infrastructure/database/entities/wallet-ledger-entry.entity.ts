@@ -4,10 +4,18 @@ import {
   Entity,
   PrimaryKey,
   Property,
+  Trigger,
   Unique,
 } from '@mikro-orm/decorators/legacy';
 
 @Entity({ tableName: 'wallet_ledger_entries' })
+@Trigger({
+  name: 'wallet_ledger_prevent_update_delete',
+  timing: 'before',
+  events: ['update', 'delete'],
+  forEach: 'row',
+  body: "raise exception 'wallet ledger entries are immutable';",
+})
 @Unique({
   name: 'wallet_ledger_transaction_unique',
   properties: ['walletId', 'transactionId'],

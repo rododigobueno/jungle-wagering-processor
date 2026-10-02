@@ -123,6 +123,7 @@ export class CreateWalletUseCase {
         kind: opening.kind,
         amount: opening.money.toJSON().amount,
         currency: opening.money.currency,
+        referenceRetryAttempts: 0,
         status: opening.status,
         createdAt: opening.createdAt,
         processedAt: opening.processedAt,
