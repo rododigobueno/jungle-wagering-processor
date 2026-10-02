@@ -21,6 +21,21 @@ describe('Wallet', () => {
     expect(wallet.version).toBe(1);
   });
 
+  it('permite abrir uma wallet com saldo zero', () => {
+    const wallet = Wallet.open({
+      id: 'wallet-zero',
+      playerId: 'player-zero',
+      initialBalance: Money.zero('BRL'),
+    });
+
+    expect(wallet.balance.toJSON()).toEqual({
+      amount: '0.00',
+      currency: 'BRL',
+    });
+
+    expect(wallet.version).toBe(1);
+  });
+
   it('debita o saldo e incrementa a versão', () => {
     const wallet = createWallet('100.00');
 
