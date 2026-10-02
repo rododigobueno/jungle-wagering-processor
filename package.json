@@ -23,6 +23,7 @@
     "test:e2e": "bun run build && vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1145.0",
     "@mikro-orm/core": "^7.2.3",
     "@mikro-orm/decorators": "^7.2.3",
     "@mikro-orm/migrations": "^7.2.3",

@@ -22,5 +22,19 @@ services:
 
     restart: unless-stopped
 
+  localstack:
+    image: localstack/localstack:4.14.0
+    container_name: jungle-localstack
+
+    environment:
+      SERVICES: sqs
+      EAGER_SERVICE_LOADING: "1"
+      AWS_DEFAULT_REGION: us-east-1
+
+    ports:
+      - "4566:4566"
+
+    restart: unless-stopped
+
 volumes:
   postgres_data:
