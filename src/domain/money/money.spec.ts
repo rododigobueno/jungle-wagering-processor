@@ -4,7 +4,7 @@ import { Money } from './money.js';
 describe('Money', () => {
   it('normaliza um valor válido para duas casas decimais', () => {
     const money = Money.from({
-      amount: '25',
+      amount: '25.00',
       currency: 'BRL',
     });
 
@@ -63,6 +63,8 @@ describe('Money', () => {
   });
 
   it.each([
+    '25',
+    '25.0',
     '',
     'NaN',
     'Infinity',

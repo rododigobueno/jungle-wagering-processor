@@ -19,7 +19,7 @@ export class Money {
       throw new Error('Invalid currency');
     }
 
-    if (!/^\d+(?:\.\d{1,2})?$/.test(amount)) {
+    if (!/^\d+\.\d{2}$/.test(amount)) {
       throw new Error('Invalid monetary amount');
     }
 
