@@ -10,6 +10,7 @@ const endpoint = process.env.SQS_ENDPOINT_URL ?? 'http://localhost:4566';
 const region = process.env.AWS_REGION ?? 'us-east-1';
 const queueName = process.env.SQS_WAGER_QUEUE_NAME ?? 'wager-transactions.fifo';
 const dlqName = process.env.SQS_WAGER_DLQ_NAME ?? 'wager-transactions-dlq.fifo';
+const outboxQueueName = process.env.SQS_OUTBOX_QUEUE_NAME ?? 'wager-events';
 const visibilityTimeout = process.env.SQS_VISIBILITY_TIMEOUT_SECONDS ?? '30';
 const maxReceiveCount = process.env.SQS_MAX_RECEIVE_COUNT ?? '5';
 
@@ -22,10 +23,11 @@ const client = new SQSClient({
   },
 });
 
-const dlqUrl = await getOrCreateQueue(dlqName);
+const dlqUrl = await getOrCreateQueue(dlqName, true);
 const dlqArn = await getQueueArn(dlqUrl);
 
-const queueUrl = await getOrCreateQueue(queueName);
+const queueUrl = await getOrCreateQueue(queueName, true);
+const outboxQueueUrl = await getOrCreateQueue(outboxQueueName, false);
 
 await client.send(
   new SetQueueAttributesCommand({
@@ -43,11 +45,12 @@ await client.send(
 
 console.log(`SQS_WAGER_QUEUE_URL=${queueUrl}`);
 console.log(`SQS_WAGER_DLQ_URL=${dlqUrl}`);
+console.log(`SQS_OUTBOX_QUEUE_URL=${outboxQueueUrl}`);
 console.log(`SQS_ENDPOINT_URL=${endpoint}`);
 
 client.destroy();
 
-async function getOrCreateQueue(name: string): Promise<string> {
+async function getOrCreateQueue(name: string, fifo: boolean): Promise<string> {
   try {
     const existing = await client.send(
       new GetQueueUrlCommand({ QueueName: name }),
@@ -67,7 +70,7 @@ async function getOrCreateQueue(name: string): Promise<string> {
   const created = await client.send(
     new CreateQueueCommand({
       QueueName: name,
-      Attributes: { FifoQueue: 'true' },
+      Attributes: fifo ? { FifoQueue: 'true' } : undefined,
     }),
   );
 
