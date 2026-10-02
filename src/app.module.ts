@@ -9,23 +9,19 @@ import { CreateWalletUseCase } from './application/wallet/create-wallet.use-case
 import { ProcessWagerTransactionUseCase } from './application/wagering/process-wager-transaction.use-case.js';
 import { SqsOutboxDispatcherWorker } from './infrastructure/messaging/sqs-outbox-dispatcher.worker.js';
 import { SqsWagerConsumerWorker } from './infrastructure/messaging/sqs-wager-consumer.worker.js';
+import { PendingReferenceResolverWorker } from './infrastructure/wagering/pending-reference-resolver.worker.js';
 
 import { WalletController } from './interfaces/http/wallet.controller.js';
 import { WageringController } from './interfaces/http/wagering.controller.js';
 
 @Module({
-  imports: [
-    MikroOrmModule.forRoot(mikroOrmConfig),
-  ],
-  controllers: [
-    AppController,
-    WalletController,
-    WageringController,
-  ],
+  imports: [MikroOrmModule.forRoot(mikroOrmConfig)],
+  controllers: [AppController, WalletController, WageringController],
   providers: [
     AppService,
     CreateWalletUseCase,
     ProcessWagerTransactionUseCase,
+    PendingReferenceResolverWorker,
     SqsOutboxDispatcherWorker,
     SqsWagerConsumerWorker,
   ],

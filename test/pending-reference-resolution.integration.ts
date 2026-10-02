@@ -18,6 +18,7 @@ import { OutboxMessageEntity } from '../src/infrastructure/database/entities/out
 import { WagerTransactionEntity } from '../src/infrastructure/database/entities/wager-transaction.entity.js';
 import { WalletLedgerEntryEntity } from '../src/infrastructure/database/entities/wallet-ledger-entry.entity.js';
 import { WalletEntity } from '../src/infrastructure/database/entities/wallet.entity.js';
+import { PendingReferenceResolverWorker } from '../src/infrastructure/wagering/pending-reference-resolver.worker.js';
 
 const postgresBaseConfig = {
   host: 'localhost',
@@ -274,7 +275,90 @@ describe('pending reference resolution with PostgreSQL', () => {
     });
     expect(stored.referenceRetryAttempts).toBe(0);
   });
+
+  it('resolves a pending reference in the background worker', async () => {
+    const { walletId, playerId } = await createWallet('worker');
+    const processor = new ProcessWagerTransactionUseCase(orm.em.fork());
+    const roundId = `round-worker-${randomUUID()}`;
+    const betExternalId = `bet-worker-${randomUUID()}`;
+
+    const refund = await processor.execute(
+      wagerInput({
+        walletId,
+        playerId,
+        roundId,
+        externalTransactionId: `refund-worker-${randomUUID()}`,
+        kind: WagerTransactionKind.Refund,
+        amount: '25.00',
+        referenceExternalTransactionId: betExternalId,
+      }),
+    );
+
+    await processor.execute(
+      wagerInput({
+        walletId,
+        playerId,
+        roundId,
+        externalTransactionId: betExternalId,
+        kind: WagerTransactionKind.Bet,
+        amount: '25.00',
+      }),
+    );
+
+    const dueEm = orm.em.fork();
+    const pending = await dueEm.findOneOrFail(WagerTransactionEntity, {
+      id: refund.transactionId,
+    });
+    pending.referenceNextAttemptAt = new Date(0);
+    await dueEm.flush();
+
+    const previousEnabled = process.env.PENDING_REFERENCE_RESOLVER_ENABLED;
+    process.env.PENDING_REFERENCE_RESOLVER_ENABLED = 'true';
+    const worker = new PendingReferenceResolverWorker(orm.em.fork());
+
+    try {
+      worker.onApplicationBootstrap();
+      await waitForResolved(refund.transactionId);
+    } finally {
+      await worker.onApplicationShutdown();
+      if (previousEnabled === undefined) {
+        delete process.env.PENDING_REFERENCE_RESOLVER_ENABLED;
+      } else {
+        process.env.PENDING_REFERENCE_RESOLVER_ENABLED = previousEnabled;
+      }
+    }
+
+    const verifyEm = orm.em.fork({ clear: true });
+    const wallet = await verifyEm.findOneOrFail(WalletEntity, { id: walletId });
+    const credits = await verifyEm.find(WalletLedgerEntryEntity, {
+      walletId,
+      transactionId: refund.transactionId,
+      direction: LedgerDirection.Credit,
+    });
+
+    expect(wallet.balance).toBe('100.00');
+    expect(credits).toHaveLength(1);
+  });
 });
+
+async function waitForResolved(transactionId: string): Promise<void> {
+  const deadline = Date.now() + 3_000;
+
+  while (Date.now() < deadline) {
+    const em = orm.em.fork({ clear: true });
+    const transaction = await em.findOne(WagerTransactionEntity, {
+      id: transactionId,
+    });
+
+    if (transaction?.status === WagerTransactionStatus.Processed) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error('Pending reference worker did not resolve in time');
+}
 
 async function createWallet(label: string): Promise<{
   walletId: string;
