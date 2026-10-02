@@ -56,12 +56,12 @@ O PostgreSQL é o ponto de coordenação entre instâncias. Não há mutex em me
 
 ## Regras das transações
 
-| Tipo | Efeito principal |
-| --- | --- |
-| `BET` | debita saldo; rejeita se não houver saldo suficiente |
-| `WIN` | credita saldo |
-| `LOSS` | registra a transação sem alterar saldo |
-| `REFUND` | reverte uma `BET` processada, creditando o valor |
+| Tipo       | Efeito principal                                             |
+| ---------- | ------------------------------------------------------------ |
+| `BET`      | debita saldo; rejeita se não houver saldo suficiente         |
+| `WIN`      | credita saldo                                                |
+| `LOSS`     | registra a transação sem alterar saldo                       |
+| `REFUND`   | reverte uma `BET` processada, creditando o valor             |
 | `ROLLBACK` | aplica o efeito inverso de uma transação referenciada válida |
 
 `REFUND` e `ROLLBACK` exigem referência externa. Valor, moeda, wallet, player, provider e rodada são validados contra a transação original.
@@ -89,6 +89,12 @@ O processamento assíncrono usa o padrão **Inbox/Outbox**.
 A mensagem SQS só recebe ACK (`DeleteMessage`) depois que o processamento financeiro foi persistido com sucesso. Se houver falha, a mensagem reaparece após o visibility timeout.
 
 Uma `RedrivePolicy` nativa do SQS envia mensagens com falhas repetidas para uma DLQ FIFO.
+
+Formato esperado do body na `wager-transactions.fifo`:
+
+`{"messageId":"msg-001","transaction":{"idempotencyKey":"idem-001","providerId":"provider-a","externalTransactionId":"bet-001","walletId":"wallet-uuid","playerId":"player-123","roundId":"round-1","gameId":"game-1","kind":"BET","money":{"amount":"25.00","currency":"BRL"}}}`
+
+Por ser FIFO, o produtor deve enviar também `MessageGroupId` e `MessageDeduplicationId`. Para o fluxo de wagering, `walletId` como grupo e `messageId` como deduplicador preservam uma identificação estável.
 
 ### Saída
 
@@ -128,7 +134,7 @@ Assim a mensagem original pode ser ACKada com segurança: a pendência já está
 
 ### Pré-requisitos
 
-- Bun instalado;
+- Bun `1.4.2` (linha 1.x registrada em `package.json`);
 - Docker / Docker Compose disponíveis;
 - portas `5432` e `4566` livres.
 
@@ -167,25 +173,25 @@ O comando cria/reutiliza a fila FIFO de entrada, sua DLQ FIFO e a fila de evento
 
 A conexão com PostgreSQL aceita as variáveis abaixo, mantendo estes defaults locais:
 
-| Variável | Default |
-| --- | --- |
-| `DB_HOST` | `localhost` |
-| `DB_PORT` | `5432` |
-| `DB_USER` | `jungle` |
-| `DB_PASSWORD` | `jungle` |
-| `DB_NAME` | `jungle_wagering` |
+| Variável      | Default           |
+| ------------- | ----------------- |
+| `DB_HOST`     | `localhost`       |
+| `DB_PORT`     | `5432`            |
+| `DB_USER`     | `jungle`          |
+| `DB_PASSWORD` | `jungle`          |
+| `DB_NAME`     | `jungle_wagering` |
 
 Os workers ficam **desligados por padrão**. Para habilitar o fluxo completo com SQS, configure:
 
-| Variável | Uso |
-| --- | --- |
-| `SQS_ENDPOINT_URL` | endpoint do SQS; localmente `http://localhost:4566` |
-| `AWS_REGION` | região AWS; localmente `us-east-1` |
-| `SQS_WAGER_CONSUMER_ENABLED=true` | habilita o consumer de transações |
-| `SQS_WAGER_QUEUE_URL` | URL impressa por `bun run sqs:provision` |
-| `SQS_OUTBOX_DISPATCHER_ENABLED=true` | habilita publicação do Outbox |
-| `SQS_OUTBOX_QUEUE_URL` | URL da fila `wager-events` |
-| `PENDING_REFERENCE_RESOLVER_ENABLED=true` | habilita o resolver de referências pendentes |
+| Variável                                  | Uso                                                 |
+| ----------------------------------------- | --------------------------------------------------- |
+| `SQS_ENDPOINT_URL`                        | endpoint do SQS; localmente `http://localhost:4566` |
+| `AWS_REGION`                              | região AWS; localmente `us-east-1`                  |
+| `SQS_WAGER_CONSUMER_ENABLED=true`         | habilita o consumer de transações                   |
+| `SQS_WAGER_QUEUE_URL`                     | URL impressa por `bun run sqs:provision`            |
+| `SQS_OUTBOX_DISPATCHER_ENABLED=true`      | habilita publicação do Outbox                       |
+| `SQS_OUTBOX_QUEUE_URL`                    | URL da fila `wager-events`                          |
+| `PENDING_REFERENCE_RESOLVER_ENABLED=true` | habilita o resolver de referências pendentes        |
 
 ### 6. Iniciar a aplicação
 

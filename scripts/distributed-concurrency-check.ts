@@ -149,7 +149,7 @@ try {
 
 function startInstance(port: number): RunningInstance {
   const logs: string[] = [];
-  const child = spawn('node', ['dist/main'], {
+  const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: process.cwd(),
     env: {
       ...process.env,
@@ -186,7 +186,7 @@ async function waitForHealth(port: number): Promise<void> {
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`http://localhost:${port}/`);
+      const response = await fetch(`http://localhost:${port}/health`);
       if (response.ok) return;
     } catch {
       // The process can still be starting.

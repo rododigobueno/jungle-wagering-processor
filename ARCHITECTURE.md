@@ -24,6 +24,7 @@ A aplicação é dividida em domínio, casos de uso, infraestrutura e interfaces
 O domínio não conhece NestJS, MikroORM ou AWS. A infraestrutura adapta PostgreSQL e SQS às necessidades da aplicação.
 
 O PostgreSQL é o ponto de coordenação entre instâncias. Não há mutex em memória ou lock dependente de um único processo.
+
 ## 1. Dinheiro como valor decimal explícito
 
 Valores monetários são representados pelo value object `Money`, baseado em `decimal.js`.
@@ -81,6 +82,7 @@ Além dos testes com EntityManagers independentes, existe `bun run test:distribu
 Esse teste cria um banco temporário, sobe dois processos Nest separados e dispara operações concorrentes contra a mesma Wallet.
 
 A prova esperada é: uma BET processada, uma rejeitada por saldo insuficiente, saldo final correto e exatamente um débito no Ledger.
+
 ## 6. Inbox/Outbox e entrega at-least-once
 
 A solução assume que mensageria distribuída pode entregar a mesma mensagem mais de uma vez.
@@ -104,6 +106,7 @@ Se o processamento falhar, não há ACK. Após o visibility timeout, a mensagem 
 Falhas repetidas são tratadas pela `RedrivePolicy` do próprio SQS, que move a mensagem para uma DLQ.
 
 Decisão: retry temporário e isolamento de mensagens problemáticas ficam separados. O consumer não envia manualmente para a DLQ.
+
 ## 8. Ledger imutável
 
 O Ledger não é apenas tratado como append-only pela aplicação. O PostgreSQL também bloqueia `UPDATE`, `DELETE` e `TRUNCATE` por trigger.
@@ -123,6 +126,7 @@ O processamento valida tipo, provider, player, wallet, round, moeda, valor e est
 Para impedir dupla reversão concorrente, a transação referenciada é bloqueada durante a decisão e existe uma unique constraint parcial para reversões já `PROCESSED` do mesmo tipo.
 
 Essa combinação protege tanto a regra de negócio quanto a corrida entre instâncias.
+
 ## 10. Referências fora de ordem
 
 Uma reversão pode chegar antes da transação original.
@@ -143,6 +147,7 @@ Isso não substitui o optimistic locking da Wallet. São mecanismos com responsa
 
 - optimistic locking protege atualização concorrente do saldo;
 - `SKIP LOCKED` distribui itens de trabalho persistidos entre workers.
+
 ## 12. Workers separados da regra de negócio
 
 Os workers Nest apenas executam loops de background e participam do lifecycle da aplicação.
@@ -166,6 +171,7 @@ O provisionamento das filas é separado da inicialização da aplicação. O scr
 A fila de entrada de wagering é FIFO. A fila de eventos de Outbox é Standard porque o contrato atual não exige ordenação dos eventos de saída.
 
 Se futuramente houver exigência de ordem por Wallet ou agregado, a fila de saída pode migrar para FIFO usando `aggregateId` como `MessageGroupId`.
+
 ## 14. Trade-offs conscientes
 
 ### Publicação do Outbox dentro do lock da linha
@@ -187,6 +193,7 @@ Essa duplicação é esperada e deve ser neutralizada por idempotência/Inbox no
 O processamento foi desenhado para operações curtas. Não existe extensão dinâmica do visibility timeout durante uma execução longa.
 
 Se o processamento ultrapassar esse período, pode ocorrer redelivery; a proteção contra efeito duplicado continua sendo a idempotência persistente.
+
 ## 15. Soluções evitadas de propósito
 
 Algumas alternativas foram deliberadamente evitadas:
@@ -212,3 +219,25 @@ As decisões acima são exercitadas por testes contra infraestrutura real local:
 - cenários de REFUND/ROLLBACK, duplicidade e referência fora de ordem.
 
 O objetivo dos testes não é apenas aumentar cobertura, mas transformar as principais afirmações arquiteturais em comportamentos reproduzíveis.
+
+## 17. Autenticação
+
+Autenticação não foi implementada intencionalmente.
+
+No desafio, esse item não compõe a pontuação técnica. A prioridade foi concentrar esforço nas garantias avaliadas: correção financeira, concorrência, idempotência, mensageria, atomicidade e auditabilidade.
+
+Em um sistema de produção, autenticação e autorização seriam adicionadas na camada de entrada, sem alterar as invariantes financeiras do domínio.
+
+## 18. Retry do Outbox
+
+Mensagens de Outbox permanecem persistidas enquanto não forem publicadas e usam `attempts` + `nextAttemptAt` para retry com backoff.
+
+Não existe um estado terminal ou DLQ específico para o Outbox neste escopo. Em produção, essa fila de pendências deveria ser acompanhada por métricas/alertas e uma política operacional para eventos que permanecessem falhando por tempo anormal.
+
+## 19. `FAILED` versus falha técnica transitória
+
+`FAILED` existe como estado terminal do domínio para uma falha que deva ser explicitamente persistida como resultado da transação.
+
+Exceções técnicas transitórias — por exemplo, indisponibilidade de infraestrutura ou conflito concorrente retryável — não são automaticamente convertidas em `FAILED`. Nesses casos a unidade SQL sofre rollback e o mecanismo apropriado faz retry ou redelivery.
+
+Isso evita registrar como resultado financeiro definitivo uma falha que ainda pode ser recuperada com segurança.
